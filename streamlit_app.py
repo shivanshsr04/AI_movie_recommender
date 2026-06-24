@@ -4,10 +4,11 @@ import pickle
 import os
 #from utils.auth import create_usertable, add_user, login_user, make_hashes
 
+
 # 1. DATA LOADING FUNCTIONS
 @st.cache_resource
 def load_data():
-    """Load the cleaned movie dataset with error reporting"""
+    """Load the cleaned movie datasets with error reporting"""
     file_path = 'models/clean_movies.pkl'
     try:
         with open(file_path, 'rb') as f:
@@ -16,7 +17,7 @@ def load_data():
         return "Error: File 'models/clean_movies.pkl' not found."
     except Exception as e:
         return f"Error: {str(e)}"
-    
+
 @st.cache_resource
 def load_models(model_dir):
     """Load ML model files safely"""
@@ -37,25 +38,25 @@ def load_models(model_dir):
 def main():
     try:
         st.title("Diagnostic Mode")
-        
+
         # 1. Attempt Data Load
         st.write("Attempting to load data...")
         movies_df = load_data()
         if movies_df is None or (hasattr(movies_df, 'empty') and movies_df.empty):
-            st.error("Data loading failed or returned empty.")
+            st.error("Data loading failed or returned empty. Try checking models/clean_movies.pkl")
         else:
             st.write(f"Data loaded successfully! Rows: {len(movies_df)}")
 
         # 2. Attempt Auth
         st.write("Attempting to create user table...")
-        create_usertable()
+        # create_usertable()
         st.write("Auth system initialized.")
 
         # 3. Attempt UI Rendering
         st.write("Attempting to render Sidebar...")
         page = st.sidebar.radio("Navigation", ["Home", "About"])
         st.write(f"Page selected: {page}")
-        
+
         st.success("Everything is working!")
 
     except Exception as e:
@@ -63,9 +64,7 @@ def main():
         import traceback
         st.text(traceback.format_exc())
     return
-    
-    if __name__ == "__main__":
-     main()
-    # ... (Rest of your UI code) ...
-   
 
+
+if __name__ == "__main__":
+    main()
