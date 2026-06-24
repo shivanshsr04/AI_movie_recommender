@@ -1,0 +1,34 @@
+[theme]
+primaryColor = "#FF6B6B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8F9FA"
+textColor = "#262730"
+font = "sans serif"
+
+[client]
+showErrorDetails = true
+toolbarMode = "developer"
+
+[logger]
+level = "info"
+
+[server]
+headless = true
+port = 8501
+maxUploadSize = 200
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[ui]
+hideTopBar = false
+hideSidebarNav = false
+
+# Performance settings
+[client]
+maxMessageSize = 200
+
+[webSocketConfig]
+firstMessageRetryMs = 100
