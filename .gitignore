@@ -163,4 +163,4 @@ notebooks/.ipynb_checkpoints/
 config.local.py
 
 # Node modules (if using any JS)
-node_modules/
+node_modules/users.db

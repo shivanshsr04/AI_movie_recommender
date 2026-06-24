@@ -36,21 +36,31 @@ class ModelTrainer:
         self.hybrid_model = None
     
     def load_data(self) -> bool:
-        """Load movie and rating data"""
+        """Load movies and ratings data"""
         try:
-            print("Loading data...")
+            print(f"🔍 DEBUG: Current Working Directory is: {os.getcwd()}")
             
-            # Load movies
-            self.movies = pd.read_csv(self.data_path / 'movies_metadata.csv', low_memory=False)
-            print(f"✓ Movies loaded: {len(self.movies)} records")
+            model_file = 'models/content_based.pkl'
             
-            # Load ratings
-            self.ratings = pd.read_csv(self.data_path / 'ratings_small.csv')
-            print(f"✓ Ratings loaded: {len(self.ratings)} records")
-            
-            return True
+            if not os.path.exists('models'):
+                print("❌ DEBUG: Cannot find the 'models' folder in this directory.")
+                return False
+                
+            if not os.path.exists(model_file):
+                print("❌ DEBUG: Cannot find 'content_based.pkl' inside the 'models' folder.")
+                print("Contents of models folder:", os.listdir('models'))
+                return False
+                
+            try:
+                with open(model_file, 'rb') as f:
+                    model_data = pickle.load(f)
+                    self.movies = model_data['movies_df']
+                    return True
+            except Exception as e:
+                print(f"❌ DEBUG: Found the file, but crashed while opening it: {e}")
+                return False
         except Exception as e:
-            print(f"✗ Error loading data: {e}")
+            print(f"Error in load_data: {e}")
             return False
     
     def preprocess_data(self) -> bool:
@@ -96,7 +106,8 @@ class ModelTrainer:
             
             # The Fix: Only use the top 10,000 popular movies to prevent crashing
             print("Grabbing the top 10,000 movies...")
-            content_movies = self.movies.sort_values('popularity', ascending=False).head(10000).reset_index(drop=True)
+            # Change this line:
+            content_movies = self.movies.sort_values('popularity', ascending=False).head(2500).reset_index(drop=True)
             
             # Create TF-IDF features from overviews
             tfidf = TfidfVectorizer(

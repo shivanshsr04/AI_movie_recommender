@@ -59,17 +59,17 @@ def load_data():
         return pd.DataFrame()
 
 @st.cache_resource
-def load_models():
-    """Load and cache trained models"""
+@st.cache_resource
+@st.cache_resource
+def load_data():
+    """Load and cache our lightweight movie dataset"""
     try:
-        model_path = 'models'
-        if os.path.exists(model_path):
-            return True
-        return False
+        # Pointing to the tiny 5MB file!
+        with open('models/clean_movies.pkl', 'rb') as f:
+            return pickle.load(f)
     except Exception as e:
-        st.error(f"Error loading models: {e}")
-        return False
-
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
 # ============= HELPER FUNCTIONS =============
 
 def get_movie_poster(movie_id, poster_path):
@@ -343,11 +343,9 @@ def main():
         This is an **AI-powered Movie Recommendation System** built with machine learning to provide 
         personalized movie suggestions based on multiple algorithms.
         
-        ### Team
+        ### Built By:
         - **Student**: Shivansh Srivastava (ID: 2301220130084)
-        - **Teammate**: Sankalp Shrivastava
-        - **Advisor**: Er. Shilpi Khanna (Faculty Coordinator)
-        - **Institution**: Final Year Capstone Project
+        - **Institution**: My Capstone Project
         """)
     
     # Footer
@@ -355,7 +353,7 @@ def main():
     st.markdown("""
     <div style='text-align: center'>
     <p>🎬 AI Movie Recommender System | Built with Streamlit & Machine Learning</p>
-    <p>© 2024 | Final Year Capstone Project | All Rights Reserved</p>
+    <p>© 2024 | My Capstone Project | All Rights Reserved</p>
     </div>
     """, unsafe_allow_html=True)
 
