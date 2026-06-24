@@ -540,15 +540,6 @@ copies or substantial portions of the Software.
 
 ---
 
-## 📞 Contact & Support
-
-- **Email**: your.email@example.com
-- **GitHub**: [@yourusername](https://github.com/yourusername)
-- **LinkedIn**: [Your Profile](https://linkedin.com/in/yourprofile)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/movie-recommender-system/issues)
-
----
-
 ## 🎬 Demo
 
 **Live Application**: https://yourusername-movie-recommender.streamlit.app
