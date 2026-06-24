@@ -7,14 +7,16 @@ import os
 # 1. DATA LOADING FUNCTIONS
 @st.cache_resource
 def load_data():
-    """Load the cleaned movie dataset"""
+    """Load the cleaned movie dataset with error reporting"""
     file_path = 'models/clean_movies.pkl'
     try:
         with open(file_path, 'rb') as f:
             return pickle.load(f)
-    except Exception:
-        return pd.DataFrame()
-
+    except FileNotFoundError:
+        return "Error: File 'models/clean_movies.pkl' not found."
+    except Exception as e:
+        return f"Error: {str(e)}"
+    
 @st.cache_resource
 def load_models(model_dir):
     """Load ML model files safely"""
@@ -32,25 +34,21 @@ def load_models(model_dir):
 # ... (Insert your display_movie_card and get_movie_poster functions here) ...
 
 # 2. MAIN APP
-#def main():
-    #st.title("IT WORKS!")
-    #st.title("App is alive!") 
-    
-    #movies_df = load_data()
-    #models = load_models('models') # Pass the directory here
-    
-    #if movies_df.empty:
-     #st.error("DEBUG: movies_df is empty! File path might be wrong.")
-     ##st.write(f"Files in 'models' folder: {os.listdir('models') if os.path.exists('models') else 'models folder not found'}")
-     
-    #return
-    
-    # ... (Rest of your UI code) ...
-    import streamlit as st
-
 def main():
     st.title("IT WORKS!")
-    st.write("The app is successfully rendering.")
+    st.title("App is alive!") 
+    
+    movies_df = load_data()
+    models = load_models('models') # Pass the directory here
+    
+    if movies_df.empty:
+     st.error("DEBUG: movies_df is empty! File path might be wrong.")
+     st.write(f"Files in 'models' folder: {os.listdir('models') if os.path.exists('models') else 'models folder not found'}")
+     
+    return
+    
+    if __name__ == "__main__":
+     main()
+    # ... (Rest of your UI code) ...
+   
 
-if __name__ == "__main__":
-    main()
