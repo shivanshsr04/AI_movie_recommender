@@ -33,7 +33,7 @@ def load_models(model_dir):
 
 # 2. MAIN APP
 def main():
-    create_usertable()
+    st.title("App is alive!") # If this appears, your app is running
     # ... (Keep your Auth Logic) ...
     
     # Authenticated section
@@ -41,7 +41,9 @@ def main():
     models = load_models('models') # Pass the directory here
     
     if movies_df.empty:
-        st.warning("⚠️ Data not loaded.")
-        return
+     st.error("DEBUG: movies_df is empty! File path might be wrong.")
+     st.write(f"Current working directory: {os.getcwd()}")
+     st.write(f"Files in 'models' folder: {os.listdir('models') if os.path.exists('models') else 'models folder not found'}")
+     return
     
     # ... (Rest of your UI code) ...
