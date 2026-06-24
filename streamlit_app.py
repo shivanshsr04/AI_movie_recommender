@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 import os
-from utils.auth import create_usertable, add_user, login_user, make_hashes
+#from utils.auth import create_usertable, add_user, login_user, make_hashes
 
 # 1. DATA LOADING FUNCTIONS
 @st.cache_resource
@@ -32,18 +32,25 @@ def load_models(model_dir):
 # ... (Insert your display_movie_card and get_movie_poster functions here) ...
 
 # 2. MAIN APP
-def main():
-    st.title("App is alive!") # If this appears, your app is running
-    # ... (Keep your Auth Logic) ...
+#def main():
+    #st.title("IT WORKS!")
+    #st.title("App is alive!") 
     
-    # Authenticated section
-    movies_df = load_data()
-    models = load_models('models') # Pass the directory here
+    #movies_df = load_data()
+    #models = load_models('models') # Pass the directory here
     
-    if movies_df.empty:
-     st.error("DEBUG: movies_df is empty! File path might be wrong.")
-     st.write(f"Current working directory: {os.getcwd()}")
-     st.write(f"Files in 'models' folder: {os.listdir('models') if os.path.exists('models') else 'models folder not found'}")
-     return
+    #if movies_df.empty:
+     #st.error("DEBUG: movies_df is empty! File path might be wrong.")
+     ##st.write(f"Files in 'models' folder: {os.listdir('models') if os.path.exists('models') else 'models folder not found'}")
+     
+    #return
     
     # ... (Rest of your UI code) ...
+    import streamlit as st
+
+def main():
+    st.title("IT WORKS!")
+    st.write("The app is successfully rendering.")
+
+if __name__ == "__main__":
+    main()
