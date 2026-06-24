@@ -35,16 +35,33 @@ def load_models(model_dir):
 
 # 2. MAIN APP
 def main():
-    st.title("IT WORKS!")
-    st.title("App is alive!") 
-    
-    movies_df = load_data()
-    models = load_models('models') # Pass the directory here
-    
-    if movies_df.empty:
-     st.error("DEBUG: movies_df is empty! File path might be wrong.")
-     st.write(f"Files in 'models' folder: {os.listdir('models') if os.path.exists('models') else 'models folder not found'}")
-     
+    try:
+        st.title("Diagnostic Mode")
+        
+        # 1. Attempt Data Load
+        st.write("Attempting to load data...")
+        movies_df = load_data()
+        if movies_df is None or (hasattr(movies_df, 'empty') and movies_df.empty):
+            st.error("Data loading failed or returned empty.")
+        else:
+            st.write(f"Data loaded successfully! Rows: {len(movies_df)}")
+
+        # 2. Attempt Auth
+        st.write("Attempting to create user table...")
+        create_usertable()
+        st.write("Auth system initialized.")
+
+        # 3. Attempt UI Rendering
+        st.write("Attempting to render Sidebar...")
+        page = st.sidebar.radio("Navigation", ["Home", "About"])
+        st.write(f"Page selected: {page}")
+        
+        st.success("Everything is working!")
+
+    except Exception as e:
+        st.error(f"FATAL ERROR: {e}")
+        import traceback
+        st.text(traceback.format_exc())
     return
     
     if __name__ == "__main__":
