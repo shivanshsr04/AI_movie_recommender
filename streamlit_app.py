@@ -10,6 +10,8 @@ import pickle
 import os
 from pathlib import Path
 from utils.auth import create_usertable, add_user, login_user, make_hashes
+# Import load_models from recommender_models to load pretrained recommender objects
+from recommender_models import load_models
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -180,7 +182,12 @@ def main():
     
     # Load data
     movies_df = load_data()
-    models_loaded = load_models()
+    # Call the load_models function imported from recommender_models and pass the models directory
+    try:
+        models_loaded = load_models('models')
+    except Exception as e:
+        st.error(f"Error loading recommendation models: {e}")
+        models_loaded = None
     
     if movies_df.empty:
         st.warning("⚠️ Data not loaded. Please ensure CSV files are in the `data/raw/` directory.")
