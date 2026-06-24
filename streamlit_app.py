@@ -44,34 +44,45 @@ st.markdown("""
 # ============= DATA LOADING & CACHING =============
 
 @st.cache_resource
-def load_data():
-    """Load and cache movie data directly from our trained models"""
+def load_models():
+    """Load and cache the cleaned movie dataset"""
+    file_path = 'models/clean_movies.pkl'
+    
     try:
-        model_file = 'models/content_based.pkl'
-        
-        if os.path.exists(model_file):
-            with open(model_file, 'rb') as f:
-                model_data = pickle.load(f)
-                return model_data['movies_df']
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as f:
+                movies_df = pickle.load(f)
+            return movies_df # Returns the actual data!
         else:
-            return pd.DataFrame()
+            st.error(f"File not found at {file_path}")
+            return None
+    except Exception as e:
+        st.error(f"Error loading models: {e}")
+        return None
+    
+@st.cache_resource
+@st.cache_resource
+@st.cache_resource
+@st.cache_resource
+@st.cache_resource
+def load_models():
+    """Load models safely, ignoring missing files."""
+    model_files = {
+        'content_based': 'models/content_based_model.pkl',
+        'collaborative': 'models/collaborative.pkl'
+    }
+    loaded_models = {}
+    
+    for name, path in model_files.items():
+        if os.path.exists(path):
+            with open(path, 'rb') as f:
+                loaded_models[name] = pickle.load(f)
+        else:
+            # We skip the load instead of crashing!
+            print(f"Warning: {path} not found, skipping.")
+            loaded_models[name] = None 
             
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
-
-@st.cache_resource
-@st.cache_resource
-@st.cache_resource
-def load_data():
-    """Load and cache our lightweight movie dataset"""
-    try:
-        # Pointing to the tiny 5MB file!
-        with open('models/clean_movies.pkl', 'rb') as f:
-            return pickle.load(f)
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
+    return loaded_models
 # ============= HELPER FUNCTIONS =============
 
 def get_movie_poster(movie_id, poster_path):

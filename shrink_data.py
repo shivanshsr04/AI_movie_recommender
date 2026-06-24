@@ -2,33 +2,36 @@ import pandas as pd
 import pickle
 import os
 
-os.makedirs('models', exist_ok=True)
+print("--- STARTING RELIABLE SHRINK ---")
+path = 'data/raw/movies_metadata.csv'
 
-# Use 'on_bad_lines="skip"' to ignore rows that are broken
-print("Loading raw data with skip...")
-try:
-    movies = pd.read_csv('data/raw/movies_metadata.csv', low_memory=False, on_bad_lines='skip')
-    print(f"Loaded {len(movies)} rows.")
-except Exception as e:
-    print(f"Error reading CSV: {e}")
-    exit()
+# Load data
+df = pd.read_csv(path, low_memory=False)
 
-# Force numeric conversion for ID to ensure we have valid records
-movies['id'] = pd.to_numeric(movies['id'], errors='coerce')
-movies = movies.dropna(subset=['id'])
+# 1. Map columns correctly based on your actual CSV header
+# We ensure 'title' exists by using 'original_title' if 'title' is empty
+df['title'] = df['title'].fillna(df['original_title'])
 
-# Clean columns
-movies['release_date'] = pd.to_datetime(movies['release_date'], errors='coerce')
-movies['year'] = movies['release_date'].dt.year
-movies['vote_average'] = pd.to_numeric(movies['vote_average'], errors='coerce').fillna(0)
-movies['popularity'] = pd.to_numeric(movies['popularity'], errors='coerce').fillna(0)
+# 2. Extract year safely
+df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
+df['year'] = df['release_date'].dt.year.fillna(0).astype(int)
 
-# Shrink
-clean_movies = movies.sort_values('popularity', ascending=False).head(10000).reset_index(drop=True)
+# 3. Clean numeric columns
+df['id'] = pd.to_numeric(df['id'], errors='coerce')
+df['vote_average'] = pd.to_numeric(df['vote_average'], errors='coerce').fillna(0)
+df['popularity'] = pd.to_numeric(df['popularity'], errors='coerce').fillna(0)
 
-if len(clean_movies) > 0:
-    with open('models/clean_movies.pkl', 'wb') as f:
-        pickle.dump(clean_movies, f)
-    print(f"✅ Success! Created file with {len(clean_movies)} movies.")
-else:
-    print("❌ Error: Still produced an empty file. Check your CSV structure!")
+# 4. Filter only the columns we actually need
+# Update the column list to include 'vote_count'
+cols = ['id', 'title', 'year', 'vote_average', 'popularity', 'overview', 'poster_path', 'vote_count']
+
+# Ensure we don't crash if vote_count is missing in the raw data
+if 'vote_count' not in df.columns:
+    df['vote_count'] = 0
+
+clean_movies = df[cols].dropna(subset=['id']).sort_values('popularity', ascending=False).head(10000)
+# 5. Save
+with open('models/clean_movies.pkl', 'wb') as f:
+    pickle.dump(clean_movies, f)
+
+print(f"✅ SUCCESS! Saved {len(clean_movies)} movies.")
