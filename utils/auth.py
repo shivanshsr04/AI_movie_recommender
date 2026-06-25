@@ -103,7 +103,7 @@ def login_user(username: str, password: str) -> Tuple[bool, str]:
         
         hashed_pwd = make_hashes(password)
         c.execute(
-            'SELECT * FROM userstable WHERE username =? AND password = ?',
+            'SELECT * FROM userstable WHERE username = ? AND password = ?',
             (username, hashed_pwd)
         )
         data = c.fetchone()
