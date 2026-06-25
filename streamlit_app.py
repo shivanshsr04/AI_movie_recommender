@@ -207,7 +207,11 @@ def signup_page():
                 elif user_exists(username):
                     st.error("❌ Username already exists!")
                 else:
+
                     # Add user with plain password; auth will hash internally
+
+                    # Pass plaintext password - add_user will hash it
+
                     success, message = add_user(username, password, email)
                     if success:
                         st.success(message)
@@ -511,5 +515,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
