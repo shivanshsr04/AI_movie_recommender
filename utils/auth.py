@@ -1,152 +1,151 @@
 """
-Authentication Module using SQLite
-Handles user registration, login, and password hashing
+Authentication Module - IMPROVED with Logging
+Debug version to help identify issues
 """
 
 import sqlite3
 import hashlib
 from typing import Tuple
+import os
+
+# Enable logging
+DEBUG = True
+
+def log(message):
+    """Log debug messages"""
+    if DEBUG:
+        print(f"🔐 AUTH: {message}")
 
 def make_hashes(password: str) -> str:
-    """
-    Hash password using SHA-256
-    
-    Args:
-        password: Plain text password
-        
-    Returns:
-        Hashed password string
-    """
-    return hashlib.sha256(str.encode(password)).hexdigest()
+    """Hash password using SHA-256"""
+    hashed = hashlib.sha256(str.encode(password)).hexdigest()
+    log(f"Hashed password: {password[:3]}... → {hashed[:10]}...")
+    return hashed
 
 def create_usertable():
-    """Creates the user database table if it doesn't already exist"""
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS userstable(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            email TEXT UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-    print("✓ User table created/verified")
+    """Create user database table"""
+    try:
+        conn = sqlite3.connect('users.db')
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS userstable(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                email TEXT UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        log("User table created/verified ✅")
+    except Exception as e:
+        log(f"Error creating table: {str(e)}")
 
 def add_user(username: str, password: str, email: str = None) -> Tuple[bool, str]:
-    """
-    Add a new user to the database
+    """Add a new user to the database"""
+    log(f"Attempting to add user: {username}")
     
-    Args:
-        username: User's username (must be unique)
-        password: User's password (will be hashed)
-        email: User's email (optional)
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
     if not username or not password:
+        log("❌ Missing username or password")
         return False, "❌ Username and password are required!"
-    
-    if len(username) < 3:
-        return False, "❌ Username must be at least 3 characters!"
-    
-    if len(password) < 6:
-        return False, "❌ Password must be at least 6 characters!"
     
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     
     try:
-        hashed_pwd = make_hashes(password)
+        log(f"Inserting user {username} with email {email}")
+        log(f"Password being stored: {password[:10]}... (length: {len(password)})")
+        
         c.execute(
             'INSERT INTO userstable(username, password, email) VALUES (?,?,?)',
-            (username, hashed_pwd, email)
+            (username, password, email)
         )
         conn.commit()
         conn.close()
-        return True, f"✅ Account '{username}' created successfully!"
+        
+        log(f"✅ User {username} added successfully")
+        return True, f"✅ Account created successfully!"
     
     except sqlite3.IntegrityError as e:
         conn.close()
+        log(f"❌ IntegrityError: {str(e)}")
         if 'username' in str(e):
             return False, f"❌ Username '{username}' already exists!"
         elif 'email' in str(e):
-            return False, f"❌ Email '{email}' is already registered!"
+            return False, f"❌ Email already registered!"
         else:
-            return False, f"❌ Error: {str(e)}"
+            return False, f"❌ {str(e)}"
     
     except Exception as e:
         conn.close()
-        return False, f"❌ Error creating account: {str(e)}"
+        log(f"❌ Exception: {str(e)}")
+        return False, f"❌ Error: {str(e)}"
 
 def login_user(username: str, password: str) -> Tuple[bool, str]:
-    """
-    Login user by verifying username and password
+    """Login user by verifying username and password"""
+    log(f"Login attempt for user: {username}")
     
-    Args:
-        username: User's username
-        password: User's password (plain text, will be hashed)
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
     if not username or not password:
+        log("❌ Missing username or password")
         return False, "❌ Please enter both username and password!"
     
     try:
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
         
+        # Hash the password they entered
         hashed_pwd = make_hashes(password)
+        log(f"Looking for user: {username}")
+        log(f"Entered password hash: {hashed_pwd[:10]}...")
+        
+        # Query database
         c.execute(
-            'SELECT * FROM userstable WHERE username = ? AND password = ?',
-            (username, hashed_pwd)
+            'SELECT username, password FROM userstable WHERE username = ?',
+            (username,)
         )
         data = c.fetchone()
         conn.close()
         
-        if data:
+        if not data:
+            log(f"❌ User {username} not found")
+            return False, "❌ Username not found!"
+        
+        stored_username, stored_hash = data
+        log(f"Found user: {stored_username}")
+        log(f"Stored password hash: {stored_hash[:10]}...")
+        log(f"Hashes match: {hashed_pwd == stored_hash}")
+        
+        if hashed_pwd == stored_hash:
+            log(f"✅ Login successful for {username}")
             return True, f"✅ Welcome back, {username}!"
         else:
+            log(f"❌ Password mismatch for {username}")
+            log(f"  Entered: {hashed_pwd}")
+            log(f"  Stored:  {stored_hash}")
             return False, "❌ Username or password is incorrect!"
     
     except Exception as e:
+        log(f"❌ Login exception: {str(e)}")
         return False, f"❌ Login error: {str(e)}"
 
 def user_exists(username: str) -> bool:
-    """
-    Check if a user exists in the database
-    
-    Args:
-        username: Username to check
-        
-    Returns:
-        True if user exists, False otherwise
-    """
+    """Check if a user exists"""
     try:
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
         c.execute('SELECT * FROM userstable WHERE username = ?', (username,))
         data = c.fetchone()
         conn.close()
-        return data is not None
-    except:
+        exists = data is not None
+        log(f"User {username} exists: {exists}")
+        return exists
+    except Exception as e:
+        log(f"Error checking user exists: {str(e)}")
         return False
 
 def get_user_info(username: str) -> dict:
-    """
-    Get user information from database
-    
-    Args:
-        username: Username
-        
-    Returns:
-        Dictionary with user info or empty dict if not found
-    """
+    """Get user information"""
     try:
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
@@ -155,93 +154,57 @@ def get_user_info(username: str) -> dict:
         conn.close()
         
         if data:
-            return {
+            info = {
                 'username': data[0],
                 'email': data[1],
-                'created_at': data[2]
+                'created_at': str(data[2]) if data[2] else 'N/A'
             }
+            log(f"Got user info for {username}")
+            return info
+        
+        log(f"No user info found for {username}")
         return {}
-    except:
+    except Exception as e:
+        log(f"Error getting user info: {str(e)}")
         return {}
 
-def delete_user(username: str, password: str) -> Tuple[bool, str]:
-    """
-    Delete a user account (requires password verification)
-    
-    Args:
-        username: Username to delete
-        password: User's password (for verification)
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
+def delete_all_users():
+    """DELETE ALL USERS - USE WITH CAUTION!"""
     try:
-        # First verify password
-        is_valid, _ = login_user(username, password)
-        if not is_valid:
-            return False, "❌ Invalid password! Cannot delete account."
-        
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
-        c.execute('DELETE FROM userstable WHERE username = ?', (username,))
+        c.execute('DELETE FROM userstable')
         conn.commit()
         conn.close()
-        
-        return True, f"✅ Account '{username}' has been deleted."
-    
+        log("🚨 ALL USERS DELETED")
+        return True
     except Exception as e:
-        return False, f"❌ Error deleting account: {str(e)}"
+        log(f"Error deleting users: {str(e)}")
+        return False
 
-def change_password(username: str, old_password: str, new_password: str) -> Tuple[bool, str]:
-    """
-    Change user password
-    
-    Args:
-        username: Username
-        old_password: Current password (for verification)
-        new_password: New password
-        
-    Returns:
-        Tuple of (success: bool, message: str)
-    """
-    # Verify old password
-    is_valid, _ = login_user(username, old_password)
-    if not is_valid:
-        return False, "❌ Current password is incorrect!"
-    
-    if len(new_password) < 6:
-        return False, "❌ New password must be at least 6 characters!"
-    
+def show_all_users():
+    """Show all users in database - DEBUG ONLY"""
     try:
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
-        
-        hashed_new_pwd = make_hashes(new_password)
-        c.execute(
-            'UPDATE userstable SET password = ? WHERE username = ?',
-            (hashed_new_pwd, username)
-        )
-        conn.commit()
+        c.execute('SELECT username, password, email FROM userstable')
+        users = c.fetchall()
         conn.close()
         
-        return True, "✅ Password changed successfully!"
-    
-    except Exception as e:
-        return False, f"❌ Error changing password: {str(e)}"
-
-def get_all_users() -> list:
-    """
-    Get list of all users (for admin purposes)
-    
-    Returns:
-        List of usernames
-    """
-    try:
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        c.execute('SELECT username FROM userstable')
-        users = [row[0] for row in c.fetchall()]
-        conn.close()
+        log(f"Database has {len(users)} users:")
+        for username, pwd_hash, email in users:
+            log(f"  - {username} | Email: {email} | Hash: {pwd_hash[:10]}...")
+        
         return users
-    except:
+    except Exception as e:
+        log(f"Error showing users: {str(e)}")
         return []
+
+# Allow disabling debug logging
+def disable_debug():
+    global DEBUG
+    DEBUG = False
+
+def enable_debug():
+    global DEBUG
+    DEBUG = True
