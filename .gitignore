@@ -164,3 +164,10 @@ config.local.py
 
 # Node modules (if using any JS)
 node_modules/users.db
+
+users.db
+__pycache__/
+.DS_Store
+users.db
+__pycache__/
+.DS_Store

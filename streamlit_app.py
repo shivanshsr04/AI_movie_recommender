@@ -167,8 +167,8 @@ def signup_page():
                 elif user_exists(username):
                     st.error("❌ Username already exists!")
                 else:
-                    hashed_pwd = make_hashes(password)
-                    success, message = add_user(username, hashed_pwd, email)
+                    #hashed_pwd = make_hashes(password)
+                    success, message = add_user(username, password, email)
                     if success:
                         st.success(message)
                         st.info("✅ Account created! Please login.")
