@@ -542,9 +542,9 @@ copies or substantial portions of the Software.
 
 ## 🎬 Demo
 
-**Live Application**: https://yourusername-movie-recommender.streamlit.app
+**Live Application**: https://aimovierecommender-cf2glabzvspdcqjzgnskyt.streamlit.app/
 
-**GitHub Repository**: https://github.com/yourusername/movie-recommender-system
+**GitHub Repository**: https://github.com/shivanshsr04/AI_movie_recommender
 
 ---
 
