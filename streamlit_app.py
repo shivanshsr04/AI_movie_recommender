@@ -8,7 +8,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 import os
-from utils.auth import create_usertable, add_user, login_user, make_hashes, user_exists, get_user_info
+from utils.auth import create_usertable, add_user, login_user, user_exists, get_user_info
 
 # ============= SETUP =============
 st.set_page_config(
@@ -44,26 +44,6 @@ def load_data():
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
-
-@st.cache_resource
-def load_models(model_dir='models'):
-    """Load ML model files safely"""
-    model_files = {
-        'content_based': 'content_based_model.pkl',
-        'collaborative': 'collaborative.pkl'
-    }
-    loaded = {}
-    for name, filename in model_files.items():
-        path = os.path.join(model_dir, filename)
-        if os.path.exists(path):
-            try:
-                with open(path, 'rb') as f:
-                    loaded[name] = pickle.load(f)
-            except:
-                loaded[name] = None
-        else:
-            loaded[name] = None
-    return loaded
 
 def extract_year(date_val):
     """Extract year from datetime or string"""
@@ -135,7 +115,7 @@ def login_page():
                 st.rerun()
         
         st.markdown("---")
-        st.info("✅ Demo Account: username=demo, password=demo123\n\nOr create a new account!")
+        st.info("Create an account to explore the demonstration catalog.")
 
 def signup_page():
     """Display signup page"""
@@ -188,35 +168,36 @@ def signup_page():
 # ============= MAIN APPLICATION PAGES =============
 
 def home_page(username, movies_df):
-    """Home page"""
+    """Display the current demonstration release status."""
     st.markdown(f"# 🎬 Welcome, {username}! 👋")
     st.markdown("---")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("""
-        ### Welcome to AI Movie Recommender! 🎥
-        
-        This application uses machine learning to provide 
-        personalized movie recommendations.
-        
-        #### Key Features:
-        - 🎯 **Content-Based Filtering**: Movies similar to your favorites
-        - 👥 **Collaborative Filtering**: Movies liked by similar users
-        - 🧮 **Matrix Factorization**: Advanced ML techniques
-        - 🔗 **Hybrid Approach**: Combining all methods for best results
+        ### Movie Discovery Demo
+
+        This stabilized release lets you search the bundled catalog, browse
+        popular titles, and explore basic dataset analytics.
+
+        ### Rebuild status
+
+        The project is being rebuilt into a tested recommendation system.
+        Content-based, collaborative, SVD, and hybrid recommendations are not
+        yet available in this release.
         """)
-    
+
     with col2:
-        st.markdown("#### Your Profile:")
+        st.markdown("#### Your Profile")
         try:
             user_info = get_user_info(username)
             if user_info:
-                st.metric("Username", user_info.get('username', 'N/A'))
-                st.metric("Email", user_info.get('email', 'Not set'))
-        except:
-            st.info("User info unavailable")
+                st.metric("Username", user_info.get("username", "N/A"))
+                st.metric("Email", user_info.get("email", "Not set"))
+        except Exception:
+            st.info("User information is unavailable.")
+
 
 def movie_search_page(username, movies_df):
     """Movie search page"""
@@ -251,65 +232,52 @@ def movie_search_page(username, movies_df):
             st.error(f"Search error: {str(e)}")
 
 def recommendations_page(username, movies_df):
-    """Get recommendations page"""
+    """Display a clearly labelled popularity-based discovery list."""
     st.markdown("---")
-    st.markdown("## 💡 Get Personalized Recommendations")
-    
+    st.markdown("## 💡 Discover Popular Movies")
+    st.info(
+        "This demonstration release shows popular, well-rated titles. "
+        "Model-based recommendations will be added after the data pipeline is rebuilt."
+    )
+
     if movies_df is None or movies_df.empty:
         st.warning("⚠️ Movie data not loaded.")
         return
-    
-    recommendation_type = st.selectbox(
-        "Choose recommendation method:",
-        [
-            "🎯 Content-Based (Similar Movies)",
-            "👥 Collaborative Filtering (Popular with Similar Users)",
-            "🧮 Matrix Factorization (Advanced ML)",
-            "🔗 Hybrid (Best of All)"
-        ]
-    )
-    
+
     try:
-        top_movies = movies_df.nlargest(100, 'popularity')
-        movie_options = {movie['title']: movie['id'] for _, movie in top_movies.iterrows()}
-        
-        selected_movie_title = st.selectbox(
-            "Select a movie you like:",
+        top_movies = movies_df.nlargest(100, "popularity")
+        movie_options = {}
+        for _, movie in top_movies.iterrows():
+            label = f"{movie['title']} ({extract_year(movie['release_date'])}) — {movie['id']}"
+            movie_options[label] = movie["id"]
+
+        selected_label = st.selectbox(
+            "Choose a movie to exclude from the discovery list:",
             list(movie_options.keys())
         )
-        
-        num_recommendations = st.slider("Number of recommendations:", 5, 20, 10)
-        
-        if st.button("🚀 Get Recommendations", key="rec_button"):
-            with st.spinner("Finding recommendations..."):
-                selected_movie_id = movie_options[selected_movie_title]
-                selected_movie = movies_df[movies_df['id'] == selected_movie_id].iloc[0]
-                
-                st.markdown(f"### Based on: **{selected_movie_title}**")
+        num_recommendations = st.slider("Number of movies to show:", 5, 20, 10)
+
+        if st.button("🚀 Show Popular Movies", key="rec_button"):
+            with st.spinner("Loading popular movies..."):
+                selected_movie_id = movie_options[selected_label]
+                selected_movie = movies_df[movies_df["id"] == selected_movie_id].iloc[0]
+
+                st.markdown(f"### Selected: **{selected_movie['title']}**")
                 display_movie_card(selected_movie)
-                
                 st.markdown("---")
-                st.markdown(f"### 🎬 Top {num_recommendations} Recommendations:")
-                
-                recommendations = movies_df[
-                    (movies_df['id'] != selected_movie_id) &
-                    (movies_df['vote_average'] >= 6.0)
-                ].nlargest(num_recommendations, 'popularity')
-                
-                for idx, (_, movie) in enumerate(recommendations.iterrows(), 1):
-                    year = extract_year(movie['release_date'])
-                    rating = movie['vote_average']
-                    title = movie['title']
-                    
-                    col1, col2 = st.columns([0.15, 0.85])
-                    with col1:
-                        st.markdown(f"### #{idx}")
-                    with col2:
-                        with st.expander(f"{title} - ⭐ {rating:.1f}/10"):
-                            score = 0.95 - (idx * 0.05)
-                            display_movie_card(movie, score=score)
+                st.markdown(f"### 🎬 {num_recommendations} Popular, Well-Rated Movies")
+
+                suggestions = movies_df[
+                    (movies_df["id"] != selected_movie_id) &
+                    (movies_df["vote_average"] >= 6.0)
+                ].nlargest(num_recommendations, "popularity")
+
+                for idx, (_, movie) in enumerate(suggestions.iterrows(), 1):
+                    with st.expander(f"#{idx} · {movie['title']} — ⭐ {movie['vote_average']:.1f}/10"):
+                        display_movie_card(movie)
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"Unable to load the discovery list: {str(e)}")
+
 
 def analytics_page(username, movies_df):
     """Analytics page"""
@@ -356,49 +324,38 @@ def analytics_page(username, movies_df):
         st.error(f"Analytics error: {str(e)}")
 
 def about_page(username):
-    """About page"""
+    """Explain the current project scope accurately."""
     st.markdown("---")
     st.markdown(f"""
-    ## 🎯 About This Project
-    
+    ## About This Project
+
     **User:** {username}
-    
-    ### Overview
-    This is an **AI-powered Movie Recommendation System** built with machine learning 
-    to provide personalized movie suggestions based on multiple algorithms.
-    
-    ### Recommendation Algorithms
-    
-    #### 1. **Content-Based Filtering**
-    - Analyzes movie features (genre, overview, keywords)
-    - Recommends movies similar to ones you like
-    - Uses TF-IDF and cosine similarity
-    
-    #### 2. **Collaborative Filtering**
-    - Analyzes user rating patterns
-    - Recommends movies liked by similar users
-    - Uses K-Nearest Neighbors (KNN)
-    
-    #### 3. **Matrix Factorization (SVD)**
-    - Decomposes user-item interaction matrix
-    - Discovers latent factors and patterns
-    
-    #### 4. **Hybrid Approach**
-    - Combines all three methods
-    - Best overall performance
-    
-    ### Dataset
-    - **Movies:** 100 movies in current dataset
-    - **Features:** Title, Overview, Genres, Release Date, Ratings, Popularity
-    
-    ### Technologies
-    - **Frontend:** Streamlit
-    - **ML:** Scikit-learn, NumPy, Pandas
-    - **Auth:** SQLite
-    
-    ### Built By:
-    - **Student:** Shivansh Srivastava (ID: 2301220130084)
+
+    ### Current release
+
+    This is a Streamlit movie-discovery demonstration built around a bundled
+    100-movie sample dataset. It supports account creation, movie search,
+    popularity-based discovery, and basic analytics.
+
+    ### Rebuild roadmap
+
+    1. Stabilize the repository and documentation
+    2. Build a validated movie and ratings data pipeline
+    3. Add a real content-based recommender
+    4. Add collaborative filtering, SVD, and hybrid ranking
+    5. Evaluate models and document measured results
+
+    ### Important limitation
+
+    The current release does not present its popularity list as a personalized
+    or machine-learning recommendation. Those features will be enabled only
+    after they are implemented and tested.
+
+    ### Built By
+
+    Shivansh Srivastava
     """)
+
 
 # ============= MAIN APP =============
 
@@ -457,8 +414,8 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center'>
-    <p>🎬 AI Movie Recommender System | Built with Streamlit & Machine Learning</p>
-    <p>© 2024 | Final Year Capstone Project | All Rights Reserved</p>
+    <p>🎬 Movie Discovery App | Demonstration release</p>
+    <p>© 2026 | Recommendation pipeline rebuild in progress</p>
     </div>
     """, unsafe_allow_html=True)
 
