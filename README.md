@@ -1,22 +1,48 @@
 # Movie Discovery App
 
-A Streamlit movie-discovery application currently being rebuilt into a reproducible recommendation system.
+A Streamlit movie-discovery application being rebuilt into a reproducible recommendation system.
 
 ## Current status
 
-This branch is the stabilization phase of that rebuild. The application currently provides:
+Phase 2 is complete on the rebuild branch. The repository now includes a
+validated preparation pipeline for TMDB metadata and MovieLens ratings. The
+Streamlit interface remains a demonstration release until Phase 3 builds and
+wires a real content-based recommender.
+
+The app currently provides:
 
 - Local account creation and login using SQLite
 - Search across the bundled 100-movie demonstration dataset
 - Popular, well-rated movie suggestions
 - Basic dataset analytics
 
-The committed model artifacts are legacy demonstration files. The current interface does **not** yet use content-based, collaborative, SVD, or hybrid recommendation models. Those capabilities will be added incrementally after the data pipeline is corrected and tested.
+## Prepare real data
+
+Place the required CSV files in data/raw. See
+[data/raw/README.md](data/raw/README.md) for exact filenames and required
+columns.
+
+Then run:
+
+    python prepare_data.py
+
+The command validates the input schema, normalizes TMDB movie IDs, maps
+MovieLens ratings through links_small.csv, filters invalid rows, and writes
+ignored outputs to data/processed.
+
+It produces:
+
+- movies.csv — cleaned TMDB metadata, including optional credits and keywords
+- ratings.csv — ratings mapped to TMDB movie_id values
+- manifest.json — row counts and output schema
+
+train_models.py intentionally does not train models in this phase. It prevents
+the old synthetic artifacts from being regenerated.
 
 ## Rebuild roadmap
 
-1. Stabilize repository structure and documentation
-2. Create a reliable movie and ratings data pipeline
+1. Stabilize repository structure and documentation — complete
+2. Create a reliable movie and ratings data pipeline — complete
 3. Deliver a real content-based recommender
 4. Connect that recommender to the Streamlit app
 5. Add collaborative filtering, SVD, and hybrid ranking
@@ -24,35 +50,26 @@ The committed model artifacts are legacy demonstration files. The current interf
 
 ## Run the current demo
 
-```bash
-git clone https://github.com/shivanshsr04/AI_movie_recommender.git
-cd AI_movie_recommender
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
+    git clone https://github.com/shivanshsr04/AI_movie_recommender.git
+    cd AI_movie_recommender
+    python3 -m venv venv
+    source venv/bin/activate  # Windows: venv\Scripts\activate
+    pip install -r requirements.txt
+    streamlit run streamlit_app.py
 
-The application requires the bundled files in `models/` for this demonstration release.
-
-## Data and model status
-
-Raw datasets are intentionally not included in this repository. The next phase will document supported data sources and add validation for all required files.
-
-Do not use the current demonstration artifacts to report recommendation-model accuracy. There is no implemented evaluation pipeline or measured model metrics yet.
+The current demonstration UI requires the bundled legacy artifacts in models.
 
 ## Project structure
 
-```text
-.streamlit/config.toml     Streamlit configuration
-models/                    Legacy demonstration artifacts
-utils/auth.py              Local account helpers
-data_loader.py             Data-pipeline module to be rebuilt
-recommender_models.py      Model classes to be corrected in later phases
-streamlit_app.py           Web application
-train_models.py            Single training entry point (to be rebuilt)
-requirements.txt           Python dependencies
-```
+    .streamlit/config.toml     Streamlit configuration
+    data/raw/                  Local source datasets and requirements
+    data/processed/            Generated normalized outputs
+    data_loader.py             Validated TMDB–MovieLens preparation pipeline
+    prepare_data.py            Data-preparation command
+    train_models.py            Guard until real model training is implemented
+    recommender_models.py      Model classes to be corrected in later phases
+    streamlit_app.py           Demonstration web application
+    requirements.txt           Python dependencies
 
 ## License
 
