@@ -207,13 +207,18 @@ class DataLoader:
         source_ratings = self.load_ratings()
         links = self.load_links()
 
-        ratings = source_ratings.merge(
+        mapped_ratings = source_ratings.merge(
             links, on="movielens_id", how="inner", validate="many_to_one"
         )
-        ratings = ratings[ratings["movie_id"].isin(movies["movie_id"])]
-        ratings = ratings.drop(columns=["movielens_id"])
-        ratings = ratings.drop_duplicates(subset=["user_id", "movie_id"], keep="last")
+        mapped_ratings = mapped_ratings[
+            mapped_ratings["movie_id"].isin(movies["movie_id"])
+        ]
+        mapped_ratings = mapped_ratings.drop(columns=["movielens_id"])
+        mapped_ratings = mapped_ratings.drop_duplicates(
+            subset=["user_id", "movie_id"], keep="last"
+        )
 
+        ratings = mapped_ratings
         movie_counts = ratings["movie_id"].value_counts()
         ratings = ratings[
             ratings["movie_id"].isin(
@@ -236,10 +241,15 @@ class DataLoader:
 
         stats = {
             "movies": int(len(movies)),
+            "source_ratings": int(len(source_ratings)),
+            "mapped_ratings": int(len(mapped_ratings)),
             "ratings": int(len(ratings)),
             "users": int(ratings["user_id"].nunique()),
             "rated_movies": int(ratings["movie_id"].nunique()),
-            "unmapped_ratings": int(len(source_ratings) - len(ratings)),
+            "unmapped_ratings": int(len(source_ratings) - len(mapped_ratings)),
+            "ratings_filtered_by_thresholds": int(
+                len(mapped_ratings) - len(ratings)
+            ),
         }
         return PreparedDatasets(movies=movies, ratings=ratings, stats=stats)
 
