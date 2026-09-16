@@ -1,0 +1,140 @@
+{
+  "dataset": "GroupLens MovieLens latest-small",
+  "source_sha256": {
+    "movies.csv": "5a5f32dd9bb3797b8e728a1b98958789d2b13f294a69fdfbc5727f8a9611aa07",
+    "ratings.csv": "aa289ca83157595d0df6aea1be6a4ded676ddc4385472e8313a8ed9805352646"
+  },
+  "python": "3.12.14",
+  "packages": {
+    "numpy": "2.3.5",
+    "pandas": "2.2.3",
+    "scipy": "1.17.0",
+    "scikit-learn": "1.8.0"
+  },
+  "protocol": {
+    "split": "global timestamp 80/10/10; ties stay together",
+    "k": 10,
+    "positive_rating": 4.0,
+    "seed": 42,
+    "minimum_train_ratings": 5,
+    "content_seed": "all training movies rated >= 4.0",
+    "candidates": "full known catalog minus all training-rated items",
+    "cold_users": "excluded; counts reported",
+    "tuning": "none; fixed parameters; both partitions use the same training fit",
+    "content_weights": [
+      0.6,
+      0.4
+    ],
+    "knn_neighbors": 20,
+    "svd_factors": 32,
+    "hybrid": "equal-weight reciprocal-rank fusion, constant 60"
+  },
+  "data": {
+    "movies": 9742,
+    "users": 610,
+    "ratings": 100836,
+    "sparsity": 0.9830317267467884,
+    "train_rows": 80669,
+    "validation_rows": 10083,
+    "test_rows": 10084,
+    "train_end_timestamp": 1458635171,
+    "validation_end_timestamp": 1498029445,
+    "movies_without_training_ratings": 1875
+  },
+  "partitions": {
+    "validation": {
+      "heldout_users": 62,
+      "evaluated_users": 21,
+      "excluded_users_by_reason": {
+        "no_training_history": 41,
+        "insufficient_training_history": 0,
+        "no_positive_seed": 0,
+        "no_relevant_heldout_item": 0
+      },
+      "metrics": {
+        "popularity": {
+          "precision@10": 0.023809523809523808,
+          "recall@10": 0.034006734006734006,
+          "ndcg@10": 0.03038941937372272,
+          "catalog_coverage": 0.005748306302607267,
+          "users_with_5_to_19_train_ratings": 0
+        },
+        "content": {
+          "precision@10": 0.004761904761904762,
+          "recall@10": 0.002070393374741201,
+          "ndcg@10": 0.006612497327312122,
+          "catalog_coverage": 0.006158899609936358,
+          "users_with_5_to_19_train_ratings": 0
+        },
+        "knn": {
+          "precision@10": 0.01904761904761905,
+          "recall@10": 0.0011544011544011544,
+          "ndcg@10": 0.014708194225685357,
+          "catalog_coverage": 0.013036337507698625,
+          "users_with_5_to_19_train_ratings": 0
+        },
+        "svd": {
+          "precision@10": 0.04285714285714285,
+          "recall@10": 0.05211825211825212,
+          "ndcg@10": 0.04204072599860015,
+          "catalog_coverage": 0.015499897351673168,
+          "users_with_5_to_19_train_ratings": 0
+        },
+        "hybrid": {
+          "precision@10": 0.023809523809523808,
+          "recall@10": 0.015488215488215487,
+          "ndcg@10": 0.02625201366294035,
+          "catalog_coverage": 0.015294600698008622,
+          "users_with_5_to_19_train_ratings": 0
+        }
+      }
+    },
+    "test": {
+      "heldout_users": 74,
+      "evaluated_users": 18,
+      "excluded_users_by_reason": {
+        "no_training_history": 54,
+        "insufficient_training_history": 0,
+        "no_positive_seed": 0,
+        "no_relevant_heldout_item": 2
+      },
+      "metrics": {
+        "popularity": {
+          "precision@10": 0.08888888888888889,
+          "recall@10": 0.04331890331890331,
+          "ndcg@10": 0.10415667479546448,
+          "catalog_coverage": 0.006158899609936358,
+          "users_with_5_to_19_train_ratings": 1
+        },
+        "content": {
+          "precision@10": 0.0,
+          "recall@10": 0.0,
+          "ndcg@10": 0.0,
+          "catalog_coverage": 0.005029768014781359,
+          "users_with_5_to_19_train_ratings": 1
+        },
+        "knn": {
+          "precision@10": 0.005555555555555556,
+          "recall@10": 0.0007936507936507937,
+          "ndcg@10": 0.006113660174946672,
+          "catalog_coverage": 0.012009854239375898,
+          "users_with_5_to_19_train_ratings": 1
+        },
+        "svd": {
+          "precision@10": 0.07222222222222223,
+          "recall@10": 0.04512265512265513,
+          "ndcg@10": 0.08171886072503216,
+          "catalog_coverage": 0.01365222746869226,
+          "users_with_5_to_19_train_ratings": 1
+        },
+        "hybrid": {
+          "precision@10": 0.08333333333333333,
+          "recall@10": 0.04356421356421356,
+          "ndcg@10": 0.07537953586612171,
+          "catalog_coverage": 0.01365222746869226,
+          "users_with_5_to_19_train_ratings": 1
+        }
+      }
+    }
+  }
+}

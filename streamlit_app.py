@@ -1,466 +1,89 @@
-"""
-AI Movie Recommender System - CUSTOMIZED FOR YOUR DATA
-Works with your specific columns:
-- id, title, overview, genres, release_date (datetime), vote_average, vote_count, popularity
-"""
-
-import streamlit as st
-import pandas as pd
-import pickle
+"""Guest-accessible movie discovery with real content inference."""
 import os
-from utils.auth import create_usertable, add_user, login_user, make_hashes, user_exists, get_user_info
+from pathlib import Path
+import pandas as pd
+import streamlit as st
+from app_service import artifact_signature, load_catalog, recommend
+from data_loader import ROOT
 
-# ============= SETUP =============
-st.set_page_config(
-    page_title="🎬 AI Movie Recommender",
-    page_icon="🎬",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title='Movie Recommendation Explorer', page_icon='🎬', layout='wide')
 
-# Initialize auth table
-try:
-    create_usertable()
-except Exception as e:
-    st.warning(f"⚠️ Auth issue: {str(e)}")
-
-# Initialize session state
-if 'logged_in' not in st.session_state:
-    st.session_state['logged_in'] = False
-    st.session_state['username'] = ''
-    st.session_state['page'] = 'login'
-
-# ============= DATA LOADING FUNCTIONS =============
 
 @st.cache_resource
-def load_data():
-    """Load the cleaned movie dataset"""
-    file_path = 'models/clean_movies.pkl'
-    try:
-        with open(file_path, 'rb') as f:
-            return pickle.load(f)
-    except FileNotFoundError:
-        return None
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return None
+def cached_catalog(model_dir, signature):
+    return load_catalog(model_dir)
 
-@st.cache_resource
-def load_models(model_dir='models'):
-    """Load ML model files safely"""
-    model_files = {
-        'content_based': 'content_based_model.pkl',
-        'collaborative': 'collaborative.pkl'
-    }
-    loaded = {}
-    for name, filename in model_files.items():
-        path = os.path.join(model_dir, filename)
-        if os.path.exists(path):
-            try:
-                with open(path, 'rb') as f:
-                    loaded[name] = pickle.load(f)
-            except:
-                loaded[name] = None
-        else:
-            loaded[name] = None
-    return loaded
-
-def extract_year(date_val):
-    """Extract year from datetime or string"""
-    try:
-        if pd.isna(date_val):
-            return "N/A"
-        if isinstance(date_val, str):
-            return date_val[:4]
-        # For datetime
-        return str(pd.Timestamp(date_val).year)
-    except:
-        return "N/A"
-
-def display_movie_card(movie, score=None):
-    """Display a movie card with details"""
-    col1, col2 = st.columns([1, 3])
-    
-    with col1:
-        year = extract_year(movie['release_date'])
-        st.write(f"**Year:** {year}")
-        st.write(f"**Rating:** {movie['vote_average']:.1f}/10")
-        if score:
-            st.write(f"**Match:** {score*100:.0f}%")
-    
-    with col2:
-        overview = movie.get('overview', 'No overview available')
-        if isinstance(overview, str) and overview:
-            st.write(overview[:300] + "..." if len(overview) > 300 else overview)
-        else:
-            st.write("No description available")
-        
-        st.write(f"**Popularity:** {movie['popularity']:.0f}")
-
-# ============= AUTHENTICATION PAGES =============
-
-def login_page():
-    """Display login page"""
-    st.markdown("# 🎬 AI Movie Recommender System")
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("## 🔐 Login")
-        
-        username = st.text_input("Username", placeholder="Enter your username")
-        password = st.text_input("Password", type="password", placeholder="Enter your password")
-        
-        col_login, col_signup = st.columns(2)
-        
-        with col_login:
-            if st.button("🔓 Login", use_container_width=True):
-                if username and password:
-                    is_valid, message = login_user(username, password)
-                    if is_valid:
-                        st.session_state['logged_in'] = True
-                        st.session_state['username'] = username
-                        st.success(message)
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        st.error(message)
-                else:
-                    st.error("❌ Please enter both username and password!")
-        
-        with col_signup:
-            if st.button("📝 Create Account", use_container_width=True):
-                st.session_state['page'] = 'signup'
-                st.rerun()
-        
-        st.markdown("---")
-        st.info("✅ Demo Account: username=demo, password=demo123\n\nOr create a new account!")
-
-def signup_page():
-    """Display signup page"""
-    st.markdown("# 🎬 AI Movie Recommender System")
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("## 📝 Create Account")
-        
-        username = st.text_input("Username", placeholder="Choose a username (3+ chars)", key="signup_user")
-        email = st.text_input("Email", placeholder="Enter your email", key="signup_email")
-        password = st.text_input("Password", type="password", placeholder="Enter password (6+ chars)", key="signup_pwd")
-        confirm_password = st.text_input("Confirm Password", type="password", placeholder="Confirm password", key="signup_confirm")
-        
-        col_signup, col_back = st.columns(2)
-        
-        with col_signup:
-            if st.button("✅ Create Account", use_container_width=True):
-                if not all([username, email, password, confirm_password]):
-                    st.error("❌ Please fill in all fields!")
-                elif len(username) < 3:
-                    st.error("❌ Username must be at least 3 characters!")
-                elif len(password) < 6:
-                    st.error("❌ Password must be at least 6 characters!")
-                elif password != confirm_password:
-                    st.error("❌ Passwords don't match!")
-                elif user_exists(username):
-                    st.error("❌ Username already exists!")
-                else:
-                    #hashed_pwd = make_hashes(password)
-                    success, message = add_user(username, password, email)
-                    if success:
-                        st.success(message)
-                        st.info("✅ Account created! Please login.")
-                        st.balloons()
-                        import time
-                        time.sleep(2)
-                        st.session_state['page'] = 'login'
-                        st.rerun()
-                    else:
-                        st.error(message)
-        
-        with col_back:
-            if st.button("⬅️ Back to Login", use_container_width=True):
-                st.session_state['page'] = 'login'
-                st.rerun()
-
-# ============= MAIN APPLICATION PAGES =============
-
-def home_page(username, movies_df):
-    """Home page"""
-    st.markdown(f"# 🎬 Welcome, {username}! 👋")
-    st.markdown("---")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        ### Welcome to AI Movie Recommender! 🎥
-        
-        This application uses machine learning to provide 
-        personalized movie recommendations.
-        
-        #### Key Features:
-        - 🎯 **Content-Based Filtering**: Movies similar to your favorites
-        - 👥 **Collaborative Filtering**: Movies liked by similar users
-        - 🧮 **Matrix Factorization**: Advanced ML techniques
-        - 🔗 **Hybrid Approach**: Combining all methods for best results
-        """)
-    
-    with col2:
-        st.markdown("#### Your Profile:")
-        try:
-            user_info = get_user_info(username)
-            if user_info:
-                st.metric("Username", user_info.get('username', 'N/A'))
-                st.metric("Email", user_info.get('email', 'Not set'))
-        except:
-            st.info("User info unavailable")
-
-def movie_search_page(username, movies_df):
-    """Movie search page"""
-    st.markdown("---")
-    st.markdown("## 🔎 Search Movies")
-    
-    if movies_df is None or movies_df.empty:
-        st.warning("⚠️ Movie data not loaded.")
-        return
-    
-    search_term = st.text_input("Search for a movie:", placeholder="e.g., Inception, Avatar...")
-    
-    if search_term:
-        try:
-            search_results = movies_df[
-                movies_df['title'].str.contains(search_term, case=False, na=False)
-            ].nlargest(10, 'popularity')
-            
-            if not search_results.empty:
-                st.markdown(f"### Found {len(search_results)} movies:")
-                
-                for idx, movie in search_results.iterrows():
-                    year = extract_year(movie['release_date'])
-                    rating = movie['vote_average']
-                    title = movie['title']
-                    
-                    with st.expander(f"▶️ {title} ({year} - ⭐ {rating:.1f}/10)"):
-                        display_movie_card(movie)
-            else:
-                st.info("No movies found. Try different keywords.")
-        except Exception as e:
-            st.error(f"Search error: {str(e)}")
-
-def recommendations_page(username, movies_df):
-    """Get recommendations page"""
-    st.markdown("---")
-    st.markdown("## 💡 Get Personalized Recommendations")
-    
-    if movies_df is None or movies_df.empty:
-        st.warning("⚠️ Movie data not loaded.")
-        return
-    
-    recommendation_type = st.selectbox(
-        "Choose recommendation method:",
-        [
-            "🎯 Content-Based (Similar Movies)",
-            "👥 Collaborative Filtering (Popular with Similar Users)",
-            "🧮 Matrix Factorization (Advanced ML)",
-            "🔗 Hybrid (Best of All)"
-        ]
-    )
-    
-    try:
-        top_movies = movies_df.nlargest(100, 'popularity')
-        movie_options = {movie['title']: movie['id'] for _, movie in top_movies.iterrows()}
-        
-        selected_movie_title = st.selectbox(
-            "Select a movie you like:",
-            list(movie_options.keys())
-        )
-        
-        num_recommendations = st.slider("Number of recommendations:", 5, 20, 10)
-        
-        if st.button("🚀 Get Recommendations", key="rec_button"):
-            with st.spinner("Finding recommendations..."):
-                selected_movie_id = movie_options[selected_movie_title]
-                selected_movie = movies_df[movies_df['id'] == selected_movie_id].iloc[0]
-                
-                st.markdown(f"### Based on: **{selected_movie_title}**")
-                display_movie_card(selected_movie)
-                
-                st.markdown("---")
-                st.markdown(f"### 🎬 Top {num_recommendations} Recommendations:")
-                
-                recommendations = movies_df[
-                    (movies_df['id'] != selected_movie_id) &
-                    (movies_df['vote_average'] >= 6.0)
-                ].nlargest(num_recommendations, 'popularity')
-                
-                for idx, (_, movie) in enumerate(recommendations.iterrows(), 1):
-                    year = extract_year(movie['release_date'])
-                    rating = movie['vote_average']
-                    title = movie['title']
-                    
-                    col1, col2 = st.columns([0.15, 0.85])
-                    with col1:
-                        st.markdown(f"### #{idx}")
-                    with col2:
-                        with st.expander(f"{title} - ⭐ {rating:.1f}/10"):
-                            score = 0.95 - (idx * 0.05)
-                            display_movie_card(movie, score=score)
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
-
-def analytics_page(username, movies_df):
-    """Analytics page"""
-    st.markdown("---")
-    st.markdown("## 📊 Movie Database Analytics")
-    
-    if movies_df is None or movies_df.empty:
-        st.warning("⚠️ Movie data not loaded.")
-        return
-    
-    try:
-        tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Ratings", "Timeline", "Top Movies"])
-        
-        with tab1:
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Total Movies", f"{len(movies_df):,}")
-            col2.metric("Avg Rating", f"{movies_df['vote_average'].mean():.1f}/10")
-            col3.metric("Total Votes", f"{int(movies_df['vote_count'].sum()):,}")
-            col4.metric("Status", "✅ Ready")
-        
-        with tab2:
-            st.markdown("### Rating Distribution")
-            rating_data = movies_df['vote_average'].value_counts().sort_index()
-            st.bar_chart(rating_data)
-        
-        with tab3:
-            st.markdown("### Movies Over Time")
-            try:
-                # Convert datetime to year
-                movies_df['year'] = pd.to_datetime(movies_df['release_date']).dt.year
-                year_data = movies_df['year'].value_counts().sort_index().tail(30)
-                st.line_chart(year_data)
-            except Exception as e:
-                st.error(f"Timeline error: {str(e)}")
-        
-        with tab4:
-            st.markdown("### Top 20 Most Popular Movies")
-            try:
-                top_20 = movies_df.nlargest(20, 'popularity')[['title', 'vote_average', 'popularity']]
-                st.dataframe(top_20, use_container_width=True)
-            except Exception as e:
-                st.error(f"Top movies error: {str(e)}")
-    except Exception as e:
-        st.error(f"Analytics error: {str(e)}")
-
-def about_page(username):
-    """About page"""
-    st.markdown("---")
-    st.markdown(f"""
-    ## 🎯 About This Project
-    
-    **User:** {username}
-    
-    ### Overview
-    This is an **AI-powered Movie Recommendation System** built with machine learning 
-    to provide personalized movie suggestions based on multiple algorithms.
-    
-    ### Recommendation Algorithms
-    
-    #### 1. **Content-Based Filtering**
-    - Analyzes movie features (genre, overview, keywords)
-    - Recommends movies similar to ones you like
-    - Uses TF-IDF and cosine similarity
-    
-    #### 2. **Collaborative Filtering**
-    - Analyzes user rating patterns
-    - Recommends movies liked by similar users
-    - Uses K-Nearest Neighbors (KNN)
-    
-    #### 3. **Matrix Factorization (SVD)**
-    - Decomposes user-item interaction matrix
-    - Discovers latent factors and patterns
-    
-    #### 4. **Hybrid Approach**
-    - Combines all three methods
-    - Best overall performance
-    
-    ### Dataset
-    - **Movies:** 100 movies in current dataset
-    - **Features:** Title, Overview, Genres, Release Date, Ratings, Popularity
-    
-    ### Technologies
-    - **Frontend:** Streamlit
-    - **ML:** Scikit-learn, NumPy, Pandas
-    - **Auth:** SQLite
-    
-    ### Built By:
-    - **Student:** Shivansh Srivastava (ID: 2301220130084)
-    """)
-
-# ============= MAIN APP =============
 
 def main():
-    """Main application"""
-    
-    # Authentication gatekeeper
-    if not st.session_state['logged_in']:
-        if st.session_state['page'] == 'signup':
-            signup_page()
-        else:
-            login_page()
-        return
-    
-    # Load data
-    movies_df = load_data()
-    username = st.session_state['username']
-    
-    # Sidebar
-    st.sidebar.markdown(f"### 👤 {username}")
-    st.sidebar.markdown("---")
-    
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
-        st.session_state['logged_in'] = False
-        st.rerun()
-    
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("## 📊 Navigation")
-    page = st.sidebar.radio("Select Page:", [
-        "🏠 Home",
-        "🔍 Movie Search",
-        "💡 Get Recommendations",
-        "📈 Analytics",
-        "ℹ️ About"
-    ])
-    
-    # Check if data loaded
-    if movies_df is None:
-        st.error("❌ Unable to load movie data. Make sure 'models/clean_movies.pkl' exists.")
-        st.info("Run: `python train_models.py` to generate the model file.")
-        return
-    
-    # Display pages
-    if page == "🏠 Home":
-        home_page(username, movies_df)
-    elif page == "🔍 Movie Search":
-        movie_search_page(username, movies_df)
-    elif page == "💡 Get Recommendations":
-        recommendations_page(username, movies_df)
-    elif page == "📈 Analytics":
-        analytics_page(username, movies_df)
-    elif page == "ℹ️ About":
-        about_page(username)
-    
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center'>
-    <p>🎬 AI Movie Recommender System | Built with Streamlit & Machine Learning</p>
-    <p>© 2024 | Final Year Capstone Project | All Rights Reserved</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.title('Movie Recommendation Explorer')
+    st.caption('Find related movies and compare content similarity with popularity.')
+    model_dir = Path(os.environ.get('MOVIE_MODEL_DIR', str(ROOT / 'models')))
+    try:
+        movies, model, metadata = cached_catalog(str(model_dir), artifact_signature(model_dir))
+    except (ValueError, OSError, KeyError) as exc:
+        st.error(f'Could not load the movie catalog: {exc}')
+        st.stop()
+    if metadata['demo']:
+        st.info('Demo mode: 12 fictional movies with authored descriptions. These examples show how similarity works; they are not real movie ratings or benchmark results.')
+    else:
+        st.caption(f"Dataset: {metadata['source']} · {len(movies):,} movies")
+    page = st.sidebar.radio('Explore', ['Recommendations', 'Search', 'Analytics', 'About'])
+    if page == 'Recommendations':
+        methods = ['Content similarity']
+        if not metadata['demo']:
+            methods.append('Popularity baseline')
+        method = st.selectbox('Recommendation method', methods)
+        ids = movies.movieId.tolist()
+        titles = movies.set_index('movieId').title.to_dict()
+        seed_id = st.selectbox('Choose a movie', ids, format_func=lambda mid: f'{titles[mid]} · #{mid}')
+        k = st.slider('Number of recommendations', 1, min(20, max(1, len(movies) - 1)), min(5, max(1, len(movies) - 1)))
+        if st.button('Find movies', type='primary'):
+            results = recommend(movies, model, seed_id, method, k)
+            st.subheader(f'Movies to explore after {titles[seed_id]}')
+            if not results:
+                st.warning('No recommendations available for this selection.')
+            for rank, (movie_id, score) in enumerate(results, 1):
+                movie = movies.loc[movies.movieId == movie_id].iloc[0]
+                with st.container(border=True):
+                    st.markdown(f'**{rank}. {movie.title}**')
+                    st.caption(movie.genres.replace('|', ' · ') or 'Genres unavailable')
+                    if method == 'Content similarity':
+                        st.write(f'Cosine similarity: {score:.3f}')
+                    else:
+                        st.write(f'Rating count: {int(score):,}')
+                    if movie.overview:
+                        st.write(movie.overview)
+            st.caption('Similarity measures shared text and genres; it is not a probability that you will like a movie.' if method == 'Content similarity' else 'Popularity counts ratings across the catalog. It does not use personal preferences.')
+    elif page == 'Search':
+        term = st.text_input('Search titles', placeholder='Enter part of a title')
+        matches = movies[movies.title.str.contains(term, case=False, na=False, regex=False)] if term else movies
+        st.caption(f'{len(matches):,} matching movies · showing up to 100')
+        st.dataframe(matches[['movieId', 'title', 'genres']].head(100), hide_index=True, use_container_width=True)
+    elif page == 'Analytics':
+        col1, col2 = st.columns(2)
+        col1.metric('Movies', f'{len(movies):,}')
+        col2.metric('Ratings', f"{int(movies.rating_count.sum()):,}")
+        st.subheader('Movies by genre')
+        genres = movies.genres.str.split('|').explode()
+        st.bar_chart(genres[genres.ne('')].value_counts())
+        if not metadata['demo']:
+            st.subheader('Most rated movies')
+            st.dataframe(movies.nlargest(20, 'rating_count')[['title', 'rating_count', 'mean_rating']], hide_index=True)
+            st.subheader('Movie release years')
+            years = pd.to_numeric(movies.title.str.extract(r'\((\d{4})\)\s*$')[0], errors='coerce').dropna().astype(int)
+            st.line_chart(years.value_counts().sort_index())
+    else:
+        st.markdown('''### How it works
+Titles and optional descriptions become TF-IDF features. Genre indicators form a separate feature block. Cosine similarity ranks movies using the combined sparse features.
 
-if __name__ == "__main__":
+**Available here:** content similarity and, with MovieLens data, a rating-count popularity baseline.
+
+**Offline experiments:** user-based collaborative filtering, TruncatedSVD and reciprocal-rank hybrid fusion. These require historical user ratings and are not connected to guest identities.
+
+**Limitations:** MovieLens small has titles and genres but no plot summaries. Similarity is not a calibrated confidence score. There is no production user-profile or feedback system.
+
+Built by Shivansh Srivastava. See the repository README for reproducible evaluation and data attribution.''')
+
+
+if __name__ == '__main__':
     main()
