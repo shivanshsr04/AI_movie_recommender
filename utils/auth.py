@@ -1,150 +1,80 @@
-import sqlite3
+"""Optional local-account helpers; the public demo uses guest access.
+
+Legacy SHA-256 hashes are upgraded after a successful login. Importing this
+module does not create a database or print account records.
+"""
 import hashlib
-from typing import Tuple
+import hmac
+import secrets
+import sqlite3
+from pathlib import Path
 
-DATABASE_FILE = 'users.db'
+DATABASE_FILE = str(Path(__file__).resolve().parents[1] / 'users.db')
+ITERATIONS = 600_000
 
-def make_hashes(password: str) -> str:
-    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def make_hashes(password):
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), ITERATIONS).hex()
+    return f'pbkdf2_sha256${ITERATIONS}${salt}${digest}'
+
+
+def verify_password(password, stored):
+    try:
+        if stored.startswith('pbkdf2_sha256$'):
+            _, rounds, salt, digest = stored.split('$')
+            rounds = int(rounds)
+            if not 1 <= rounds <= 2_000_000:
+                return False
+            actual = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), rounds).hex()
+            return hmac.compare_digest(actual, digest)
+        if len(stored) == 64:
+            return hmac.compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored)
+    except (ValueError, TypeError):
+        pass
+    return False
+
 
 def create_usertable():
-    try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=10.0)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS userstable(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                email TEXT UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Error: {str(e)}")
+    with sqlite3.connect(DATABASE_FILE) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS userstable (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL, email TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
-def add_user(username: str, password: str, email: str = None) -> Tuple[bool, str]:
-    if not username or not password:
-        return False, "❌ Username and password required!"
-    
+
+def add_user(username, password, email=None):
+    if not username or len(password) < 8:
+        return False, 'A username and password of at least 8 characters are required.'
+    create_usertable()
     try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=10.0)
-        cursor = conn.cursor()
-        
-        hashed_pwd = make_hashes(password)
-        cursor.execute(
-            'INSERT INTO userstable(username, password, email) VALUES (?,?,?)',
-            (username, hashed_pwd, email)
-        )
-        conn.commit()
-        conn.close()
-        
-        return True, f"✅ Account created successfully!"
-    
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            conn.execute('INSERT INTO userstable(username,password,email) VALUES (?,?,?)',
+                         (username.strip(), make_hashes(password), email))
+        return True, 'Account created.'
     except sqlite3.IntegrityError:
-        return False, "❌ Username already exists!"
-    except Exception as e:
-        return False, f"❌ Error: {str(e)}"
+        return False, 'Username or email already exists.'
 
-def login_user(username: str, password: str) -> Tuple[bool, str]:
-    if not username or not password:
-        return False, "❌ Please enter username and password!"
-    
-    try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=10.0)
-        cursor = conn.cursor()
-        
-        hashed_pwd = make_hashes(password)
-        cursor.execute(
-            'SELECT username, password FROM userstable WHERE username = ?',
-            (username,)
-        )
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result is None:
-            return False, "❌ Username not found!"
-        
-        stored_username, stored_hash = result
-        
-        if hashed_pwd == stored_hash:
-            return True, f"✅ Welcome back, {username}!"
-        else:
-            return False, "❌ Username or password is incorrect!"
-    
-    except Exception as e:
-        return False, f"❌ Error: {str(e)}"
 
-def user_exists(username: str) -> bool:
-    try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=5.0)
-        cursor = conn.cursor()
-        cursor.execute('SELECT 1 FROM userstable WHERE username = ? LIMIT 1', (username,))
-        result = cursor.fetchone()
-        conn.close()
-        return result is not None
-    except:
-        return False
+def login_user(username, password):
+    create_usertable()
+    with sqlite3.connect(DATABASE_FILE) as conn:
+        row = conn.execute('SELECT password FROM userstable WHERE username=?', (username,)).fetchone()
+        if row is None or not verify_password(password, row[0]):
+            return False, 'Invalid username or password.'
+        if not row[0].startswith('pbkdf2_sha256$'):
+            conn.execute('UPDATE userstable SET password=? WHERE username=?', (make_hashes(password), username))
+    return True, 'Signed in.'
 
-def get_user_info(username: str) -> dict:
-    try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=5.0)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username, email, created_at FROM userstable WHERE username = ?', (username,))
-        data = cursor.fetchone()
-        conn.close()
-        
-        if data:
-            return {
-                'username': data[0],
-                'email': data[1],
-                'created_at': str(data[2]) if data[2] else 'N/A'
-            }
-        return {}
-    except:
-        return {}
 
-def show_all_users():
-    try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=5.0)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username, password, email, created_at FROM userstable')
-        users = cursor.fetchall()
-        conn.close()
-        
-        print("\n" + "="*80)
-        print("📋 ALL USERS IN DATABASE:")
-        print("="*80)
-        if users:
-            for username, pwd, email, created in users:
-                print(f"Username: {username}")
-                print(f"  Email: {email}")
-                print(f"  Password Hash: {pwd[:20]}...")
-                print(f"  Created: {created}")
-                print()
-        else:
-            print("❌ NO USERS IN DATABASE")
-        print("="*80 + "\n")
-        
-        return users
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return []
-def verify_database() -> bool:
-    """Checks if the userstable exists in the database."""
-    try:
-        conn = sqlite3.connect(DATABASE_FILE, timeout=5.0)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='userstable';")
-        exists = cursor.fetchone() is not None
-        conn.close()
-        return exists
-    except Exception as e:
-        print(f"❌ Verification failed: {e}")
-        return False
+def user_exists(username):
+    create_usertable()
+    with sqlite3.connect(DATABASE_FILE) as conn:
+        return conn.execute('SELECT 1 FROM userstable WHERE username=?', (username,)).fetchone() is not None
 
-create_usertable()
+
+def get_user_info(username):
+    create_usertable()
+    with sqlite3.connect(DATABASE_FILE) as conn:
+        row = conn.execute('SELECT username,email,created_at FROM userstable WHERE username=?', (username,)).fetchone()
+    return dict(zip(['username', 'email', 'created_at'], row)) if row else {}
