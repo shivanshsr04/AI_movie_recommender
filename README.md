@@ -448,6 +448,7 @@ B.Tech — Information Technology
 
 GitHub:
 https://github.com/shivanshsr04
+Live: https://aimovierecommender-cf2glabzvspdcqjzgnskyt.streamlit.app/
 
 ---
 
