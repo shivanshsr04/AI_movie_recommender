@@ -1,4 +1,4 @@
-# 🎬 AI Movie Recommender System
+7# 🎬 AI Movie Recommender System
 
 A machine-learning based movie recommendation system that combines **content-based filtering, collaborative filtering, matrix factorization, and hybrid recommendation techniques** to generate personalized movie recommendations.
 
@@ -448,6 +448,7 @@ B.Tech — Information Technology
 
 GitHub:
 https://github.com/shivanshsr04
+
 Live: https://aimovierecommender-cf2glabzvspdcqjzgnskyt.streamlit.app/
 
 ---
